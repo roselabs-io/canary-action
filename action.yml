@@ -125,21 +125,18 @@ runs:
 
           echo "📦 Scanning $file ($ecosystem)..."
 
-          # Read lockfile content
-          content=$(cat "$file")
-
-          # Build JSON payload (escape content properly)
+          # Build JSON payload using --rawfile to handle large files
           payload=$(jq -n \
             --arg ecosystem "$ecosystem" \
-            --arg lockfile "$content" \
+            --rawfile lockfile "$file" \
             '{ecosystem: $ecosystem, lockfile: $lockfile}')
 
-          # Call Canary API
-          response=$(curl -s -w "\n%{http_code}" \
+          # Call Canary API (use @- to read payload from stdin for large payloads)
+          response=$(echo "$payload" | curl -s -w "\n%{http_code}" \
             -X POST "${CANARY_API_URL}/v1/scan" \
             -H "Content-Type: application/json" \
             -H "X-API-Key: ${CANARY_API_KEY}" \
-            -d "$payload" 2>/dev/null || echo -e "\n000")
+            -d @- 2>/dev/null || echo -e "\n000")
 
           # Extract status code (last line) and body (everything else)
           http_code=$(echo "$response" | tail -n1)
